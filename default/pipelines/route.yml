@@ -1,0 +1,21 @@
+id: default
+groups: {}
+routes:
+  - id: y7yV5b
+    name: Syslog-PreProcessing
+    final: true
+    disabled: false
+    pipeline: CriblSyslogPreProcessing
+    description: ""
+    clones: []
+    filter: __inputId.startsWith('syslog:')
+    output: default
+  - id: 9BEITk
+    name: Default
+    final: true
+    disabled: false
+    pipeline: devnull
+    description: If it's not coming in via syslog, dropit
+    clones: []
+    filter: "true"
+    output: default

@@ -1,0 +1,478 @@
+asyncFuncTimeout: 1000
+output: default
+description: Set default fields
+functions:
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: >-
+        This conditioning pipeline is for use when receiving data over the
+        syslog protocol, directly. (And, it's not for use when syslog-formatted
+        data is being received from a Splunk forwarder, Elastic Beats agent,
+        etc.)
+
+
+        This pipeline reformats the logs by removing redundant fields; this has the net effect of removing some 30+ bytes for every event, without losing anything in the process.
+
+
+        This pipeline also uses a lookup file to match hostnames/IPs to a possible sourcetype/index pair, a function that's equivalent to a Splunk forwarder's inputs.conf file monitoring syslog files on disk.
+
+
+        Timestamp extraction and timezone normalization are also included. With certain syslog senders, a more-accurate timezone is included at the beginning of the message field.  A lookup file is also used to provide timezone information when none is present AND when the inbound time is off by one or more hours.
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: For additional details, see this pack's README under Settings.
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: "Author: Michael Donnelly - Cribl"
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >-
+        Enable ONE of the functions in this group.  You may choose either to
+
+        5) Keep it, as-is, and send on to the destination.
+
+        6) Drop anything that arrived on a syslog port, but that isn't really syslog
+    groupId: 2yDMIY
+  - id: eval
+    filter: __syslogFail
+    disabled: false
+    conf: {}
+    final: true
+    description: Stop processing if the event has been evaluated by Cribl as not complying
+      with syslog RFCs.  Just ... do nothing.
+    groupId: 2yDMIY
+  - id: drop
+    filter: __syslogFail
+    disabled: false
+    conf: {}
+    description: Stop processing if the event has been evaluated by Cribl as not complying
+      with syslog RFCs. Drop the message entirely.
+    groupId: 2yDMIY
+    final: true
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: Take timestamps from message body into account, for generic syslog
+        messages.  Specific syslog data sets (such as PAN TRAFFIC) should be
+        addressed in pipelines dedicated to that data set, rather than here.
+    groupId: ar8aMa
+  - id: auto_timestamp
+    filter: message
+    disabled: null
+    conf:
+      srcField: message
+      dstField: __timePrecise
+      defaultTimezone: utc
+      timeExpression: time.getTime() / 1000
+      offset: 0
+      maxLen: 30
+      defaultTime: none
+      latestDateAllowed: +1week
+      earliestDateAllowed: -420weeks
+    groupId: ar8aMa
+    description: If a timestamp exists at the beginning of the message field, use it for
+      more precision.
+  - id: eval
+    filter: __timePrecise
+    disabled: null
+    conf:
+      add:
+        - name: _time
+          value: __timePrecise
+        - name: __timezone
+          value: "'found'"
+    groupId: ar8aMa
+    description: "If a precise time was found, use it instead of the original _time.   "
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: Precise time is assumed to include timezone information.  If we did not
+        see a precise timestamp, check the lookup file for timezone
+        information.  It it exists, use this.
+    groupId: ar8aMa
+  - id: lookup
+    filter: "!__timePrecise"
+    disabled: null
+    conf:
+      matchMode: exact
+      reloadPeriodSec: 60
+      addToEvent: false
+      inFields:
+        - eventField: host
+          lookupField: host
+      ignoreCase: false
+      file: SyslogLookup.csv
+      outFields:
+        - lookupField: timezone
+          eventField: __timezone
+    groupId: ar8aMa
+    final: false
+  - id: eval
+    filter: "!__timePrecise && __timezone"
+    disabled: null
+    conf:
+      add:
+        - name: _time
+          value: C.Time.adjustTZ(_time,'UTC',__timezone)/1000 || _time
+    groupId: ar8aMa
+    description: Adjust time using the timezone returned from the lookup
+    final: false
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: The timezone has not yet been determined.  Check for offset by N full
+        hours (+/- Y seconds) and auto-adjust as needed.  Disable these
+        functions if an automatic adjustment is not desired.
+    groupId: ar8aMa
+  - id: eval
+    filter: "!__timezone"
+    disabled: null
+    conf:
+      add:
+        - name: __offsetPrecision
+          value: "5"
+    groupId: ar8aMa
+    description: Set precision when matching by hour.  0 =exact, 120=+/- 2mins
+  - id: eval
+    filter: "!__timezone"
+    disabled: null
+    conf:
+      add:
+        - name: __secsOff
+          value: (_time - Date.now()/1000)
+        - name: __hoursOff
+          value: Math.round(__secsOff/3600)
+        - name: __moduloOff
+          value: Math.abs(__secsOff%3600)
+    groupId: ar8aMa
+    description: "Calculate the difference in various ways.  "
+    final: false
+  - id: eval
+    filter: __offsetPrecision && (__moduloOff<__offsetPrecision ||
+      __moduloOff>(3600-__offsetPrecision))
+    disabled: false
+    conf:
+      add:
+        - name: _time
+          value: _time - (__hoursOff*3600)
+        - name: _correctedHours
+          value: __hoursOff
+      remove:
+        - __moduloOff
+    groupId: ar8aMa
+    description: This event is very nearly off by N hours.  Offset the original _time by
+      the exact number of hours.  Remove __moduloOff to avoid subsequent
+      processing.
+  - id: eval
+    filter: "true"
+    disabled: null
+    conf:
+      remove:
+        - appname
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >-
+        The original _raw field includes information that is also stored in
+        other fields:
+         - timestamp 
+         - hostname
+
+        Remove these as redundant.
+    groupId: bCgDMX
+  - id: eval
+    filter: message && appname
+    disabled: false
+    conf:
+      add:
+        - name: _raw
+          value: 'appname.concat(": ", message)'
+        - name: __appname
+          value: appname
+      remove:
+        - message
+        - appname
+    description: Preserve the appname and message.  Preserve appname as __appname for later
+      filtering if needed.
+    groupId: bCgDMX
+  - id: eval
+    filter: message
+    disabled: false
+    conf:
+      remove:
+        - message
+      add:
+        - name: _raw
+          value: message
+    groupId: bCgDMX
+    description: If there wasn't an appname, preserve only the message in _raw.
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >
+        We have four fields, two are redundant.
+
+
+        field          example
+
+        --------       ---------
+
+        severity       4
+
+        severityName   warning
+
+        facility       8
+
+        facilityName   kern
+
+
+        The eval functions below drop whichever pair you do not wish to send onwards.  Some prefer to drop both sets prior to final delivery, but this could be done in an output conditioning pipeline instead.
+
+
+        Enable ONE of the functions in this group.  You may choose either to
+
+        11) Drop the numeric fields facility and severity
+
+        12) Drop the text fields facilityName and severityName
+    groupId: QghKh8
+  - id: eval
+    filter: severity || facility
+    disabled: false
+    conf:
+      remove:
+        - severity
+        - facility
+    groupId: QghKh8
+    description: Drop severity and facility, these are numeric fields and not as
+      human-friendly.
+  - id: eval
+    filter: severityName || facilityName
+    disabled: true
+    conf:
+      remove:
+        - severityName
+        - facilityName
+    description: Drop severityName and facilityName, these longer and we are trying to
+      minimize the total number of bytes being delivered.
+    groupId: QghKh8
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: >-
+        In some cases, different syslog ports are used for different devices,
+        and fields such as index and sourcetype are hard-coded to the sourcetype
+        itself.
+
+
+        While this is the preferred approach whenever possible, there are some devices for which the default syslog port is the only available option.  In such cases, one must use a lookup to identify the correct meta information.
+    groupId: H9ubqT
+  - id: regex_extract
+    filter: __srcIpPort
+    disabled: false
+    conf:
+      source: __srcIpPort
+      iterations: 100
+      overwrite: false
+      regex: /(?<__srcProto>.*)\|(?<__srcIp>.*?)\|(?<__srcPort>.*)/
+    description: From value of __srcIpPort, extract the source ip as seen by the LogStream
+      worker
+    groupId: H9ubqT
+  - id: lookup
+    filter: "!index && !sourcetype"
+    disabled: false
+    conf:
+      matchMode: exact
+      reloadPeriodSec: 60
+      addToEvent: false
+      inFields:
+        - eventField: host
+          lookupField: host
+      ignoreCase: false
+      matchType: first
+      file: SyslogLookup.csv
+      outFields:
+        - lookupField: source
+          eventField: source
+        - lookupField: index
+          eventField: index
+        - lookupField: sourcetype
+          eventField: sourcetype
+    groupId: H9ubqT
+    description: Look up meta based on host field
+  - id: lookup
+    filter: "!index && !sourcetype"
+    disabled: false
+    conf:
+      matchMode: exact
+      reloadPeriodSec: 60
+      addToEvent: false
+      inFields:
+        - eventField: __srcIp
+          lookupField: host
+      ignoreCase: false
+      matchType: first
+      file: SyslogLookup.csv
+      outFields:
+        - lookupField: source
+          eventField: source
+        - lookupField: index
+          eventField: index
+        - lookupField: sourcetype
+          eventField: sourcetype
+    description: Look up meta based on __srcIp field
+    groupId: H9ubqT
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >-
+        For some syslog sources, the self-identified host field is actually an
+        IP address.  In such cases, the lookup file itself, listing the IP
+        address, is the optimal approach.  
+
+
+        If the lookup above failed to find the host - we can take a second pass at a lookup, using the IP address of the source.
+
+
+        For optimal performance, do NOT do a reverse DNS lookup if either of these is true:
+
+        a) the data was already found in a lookup,
+
+        b) the host field is not a possible IPv4 address
+
+
+        Reverse DNS results will always be FQDNs, ensure you account for this within the lookup file. 
+    groupId: 8k1eMB
+  - id: dns_lookup
+    filter: "!index && !sourcetype && host.match(/^\\d+\\.\\d+\\.\\d+\\.\\d+$/)"
+    disabled: true
+    conf:
+      cacheTTL: 30
+      maxCacheSize: 5000
+      dnsLookupFields:
+        - resourceRecordType: A
+          inFieldName: host
+          outFieldName: __hostIP
+      reverseLookupFields:
+        - inFieldName: host
+          outFieldName: __hostDNS
+    groupId: 8k1eMB
+    description: If the host field contains an IP address, use reverse DNS to map back to a
+      hostname.
+  - id: lookup
+    filter: "!index && !sourcetype"
+    disabled: true
+    conf:
+      matchMode: exact
+      reloadPeriodSec: 60
+      addToEvent: false
+      inFields:
+        - eventField: __hostDNS
+          lookupField: host
+      ignoreCase: false
+      matchType: first
+      file: SyslogLookup.csv
+      outFields:
+        - lookupField: source
+          eventField: source
+        - lookupField: index
+          eventField: index
+        - lookupField: sourcetype
+          eventField: sourcetype
+    description: Look up meta based on __hostDNS field
+    groupId: 8k1eMB
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >-
+        If index is empty, continue on with brute-force matching against
+        _raw.  One example is provided, edit and clone as needed.
+
+
+        While this method will work, it does require more processing than the lookup based on the host field.  Use this approach when other approaches are not viable.
+    groupId: MGH2i6
+  - id: eval
+    filter: index && sourcetype
+    disabled: false
+    conf: {}
+    groupId: MGH2i6
+    final: true
+    description: Stop processing now, if index and sourcetype have already been
+      set.  (Avoid overhead of filtering _raw for matches.)
+  - id: eval
+    filter: _raw.match(',TRAFFIC,') && _raw.match('PA-VM')
+    disabled: false
+    conf:
+      add:
+        - name: sourcetype
+          value: "'pan:traffic'"
+        - name: index
+          value: "'pan-traffic'"
+    description: Add sourcetype and index to PAN Firewall Traffic events.
+    groupId: MGH2i6
+  - id: eval
+    filter: "!index && !sourcetype"
+    disabled: false
+    conf:
+      add:
+        - name: source
+          value: "source ? source : __inputId"
+        - name: sourcetype
+          value: "sourcetype ? sourcetype : 'syslog'"
+        - name: index
+          value: "'main'"
+      remove: []
+    description: After all the lookups - handle missing metadata
+groups:
+  2yDMIY:
+    name: Syslog_check
+    description: handle data that arrived on a syslog port, but where the data is not using
+      syslog protocol.
+    index: 3
+    disabled: false
+  ar8aMa:
+    name: Timestamps
+    description: Use accurate timestamps when available, address hosts in alternate
+      timezones
+    index: 4
+  bCgDMX:
+    name: Volume reduction
+    description: Reduce data by removing redundant fields from _raw
+    index: 6
+    disabled: false
+  QghKh8:
+    name: Additional cleanup
+    description: Remove redundant fields from input
+    index: 7
+    disabled: false
+  H9ubqT:
+    name: Set meta from hostname, srcip using lookups
+    description: Use  hostname or source IP to look up index, sourcetype if this data is
+      not already set.
+    index: 8
+    disabled: false
+  8k1eMB:
+    name: Host field normalization
+    description: Set meta from reverse DNS + lookup
+    disabled: false
+    index: 9
+  MGH2i6:
+    name: "Set Meta information from _raw "
+    description: If sourcetype / index have not been identified yet, analyze _raw
+    index: 10
+    disabled: false

@@ -1,0 +1,9 @@
+output: default
+groups: {}
+asyncFuncTimeout: 1000
+functions:
+  - id: drop
+    filter: "true"
+    disabled: null
+    conf: {}
+    final: true

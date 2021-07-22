@@ -1,0 +1,1 @@
+{"name":"cribl-syslog-input","version":"0.5.0","author":"Michael Donnelly - Cribl","description":"Pre-process data received over Syslog, for volume reduction and enrichment.  Timestamp normalization is implemented for hosts without time zones."}
