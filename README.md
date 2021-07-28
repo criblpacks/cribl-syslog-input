@@ -9,11 +9,11 @@ The pack provides the following benefits:
 * Timezone normalization, when senders do not include timezone information
 * Lookup-based enrichment to set additional meta-information for a given sender.  Examples include index, sourcetype, and time zone.
 
-The pack also includes a variety sample files for use when evaluating which features to enable/disable for a given customer deployment.
+The pack also includes a sample log for use when evaluating which features to enable/disable for a given customer deployment.
 
-This Pack's pipeline is intended for use with general-purpose ingest of data from Syslog senders, by way of an Input Conditiong pipeline. It is used when the sender is using the _Syslog protocol_ to send to LogStream, as opposed to data in a syslog-compliant format being delivered via another delivery method. 
+This Pack's pipeline is intended for use with general-purpose ingest of data from Syslog senders, by way of an Input Conditioning pipeline. It is used when the sender is using the _Syslog protocol_ to send to LogStream, as opposed to data in a syslog-compliant format being delivered via another delivery method. 
 
-*Input conditioning pipelines* are particularly suited to general actions that one _always_ wants to take for a given input source.  They generally should _not_ be used for specific data sets; pipeline manipulation for a given data set should be acheived within a pipeline specifically tailored to that data set.
+*Input conditioning pipelines* are particularly suited to general actions that one _always_ wants to take for a given input source.  They generally should _not_ be used for specific data sets; pipeline manipulation for a given data set should be achieved within a pipeline specifically tailored to that data set.
 
 For example, to process all Syslog data from all Syslog senders on ports 514, and XYZ, use an input conditioning pipeline to normalize processing of Severity and Facility information, and for basic volume reduction.
 
@@ -50,8 +50,8 @@ _Tying the pipeline to sources_
 Initial release of the Cribl Syslog Pre-processing pack.
 
 ## Contributing to the Pack
-To contribute to the Pack, please do the following connect with Michael Donnelly on the Cribl Community Slack.  You can suggest new features or offer to collaborate.
+To contribute to the Pack, please connect with Michael Donnelly on the Cribl Community Slack.  You can suggest new features or offer to collaborate.
 
 ## License
-This Pack uses the following license: [`Apache 2.0`]
-(https://github.com/criblio/appscope/blob/master/LICENSE).
+---
+This Pack uses the following license: [`Apache 2.0`](https://github.com/criblio/appscope/blob/master/LICENSE).
