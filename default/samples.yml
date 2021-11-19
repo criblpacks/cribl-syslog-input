@@ -4,3 +4,9 @@ tb6iJJ:
   created: 1623255554361
   size: 98899
   numEvents: 122
+3wMQWc:
+  sampleName: netgear.log
+  description: Syslog data from Ubiquiti network gear
+  created: 1637253293785
+  size: 7869
+  numEvents: 16

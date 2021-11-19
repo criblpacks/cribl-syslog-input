@@ -8,6 +8,8 @@ routes:
     pipeline: CriblSyslogPreProcessing
     description: ""
     clones: []
+    enableOutputExpression: false
+    outputExpression: null
     filter: __inputId.startsWith('syslog:')
     output: default
   - id: 9BEITk
@@ -15,7 +17,9 @@ routes:
     final: true
     disabled: false
     pipeline: devnull
-    description: If it's not coming in via syslog, dropit
+    description: If it's not coming in via syslog, drop it.
     clones: []
+    enableOutputExpression: false
+    outputExpression: null
     filter: "true"
     output: default

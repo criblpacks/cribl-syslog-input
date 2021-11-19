@@ -5,11 +5,11 @@ This Pack enables a variety of functions when LogStream is used to receive data 
 
 The pack provides the following benefits:
 * Provides a pipeline for use as an Input Pre-Conditioning pipeline
-* Volume reduction by removing redundant information, such as the human-readable timestamp.
+* Volume reduction by removing redundant information, such as the human-readable timestamp. Typical reduction is 20-30% overall.
 * Timezone normalization, when senders do not include timezone information
 * Lookup-based enrichment to set additional meta-information for a given sender.  Examples include index, sourcetype, and time zone.
 
-The pack also includes a sample log for use when evaluating which features to enable/disable for a given customer deployment.
+The pack also includes sample logs for use when evaluating which features to enable/disable for a given customer deployment.
 
 This Pack's pipeline is intended for use with general-purpose ingest of data from Syslog senders, by way of an Input Conditioning pipeline. It is used when the sender is using the _Syslog protocol_ to send to LogStream, as opposed to data in a syslog-compliant format being delivered via another delivery method. 
 
@@ -45,6 +45,12 @@ _Tying the pipeline to sources_
 
 
 ## Release Notes
+
+### Version 1.1.0 - 2021-11-18
+1. Increased volume reduction when event contains multiple timestamps, by removing second timestamp
+2. Improved commenting througout
+3. Added log samples from networking gear in an older syslog format
+4. Improved metadata lookup attempts, now including hardcoded values if all other approaches fail.
 
 ### Version 1.0.0 - 2021-07-29
 Initial release of the Cribl Syslog Pre-processing pack.

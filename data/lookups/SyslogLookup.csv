@@ -1,6 +1,7 @@
-host,index,sourcetype,timezone
+host,index,sourcetype,source,__timezone
 "# Host column lists the value you'll see from the sender: hostname or IP or FQDN depending on configuration. "
-# timeoffset column is used for senders that do NOT send in UTC or include a timezone.  Offset is the time (in seconds) to add or subtract from sender's timestamp
-10.23.45.67,firewall,pan
+# __timezone column is used for senders that do NOT send in UTC or include a timezone in their timestamp.,,,
+10.23.45.67,firewall,pan,pan,
 10.23.54.76,f5,f5
-ip-10-7-108-42,linuxhosts,syslog-linux,EST
+ip-10-7-108-42,linuxhosts,syslog-linux,,EST
+mdonnelly-router,firewall,ubiquiti,
