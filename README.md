@@ -46,10 +46,6 @@ _Tying the pipeline to sources_
 
 ## Release Notes
 
-### Version 1.1.3 - 2022-03-29
-1. Added metadata for packs.cribl.io suite
-2. Added sample files for Ubiquiti routers
-
 ### Version 1.1.0 - 2021-11-18
 1. Increased volume reduction when event contains multiple timestamps, by removing second timestamp
 2. Improved commenting througout
