@@ -5,3 +5,4 @@ host,index,sourcetype,source,__timezone
 10.23.54.76,f5,f5
 ip-11-7-108-42,linuxhosts,syslog-linux,,EST
 mdonnelly-router,firewall,ubiquiti,
+192.168.2.251,testing,testing,testing,

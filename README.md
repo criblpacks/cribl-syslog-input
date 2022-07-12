@@ -44,7 +44,30 @@ _Tying the pipeline to sources_
 3. Repeat steps 1 and 2 for additional syslog sources as needed.
 
 
+## Upgrading Packs
+When upgrading this or any pack, it is recommended to
+* Import the updated pack under a new name that includes the version. Example: `cribl-syslog-input-120`.  This allows you to review and adjust new functionality against currently-deployed configurations.
+* Copy any modified lookup files from the previous version of the pack over to the newly installed version.  (Skip this step if lookups were not modified for your environment.)
+* Review all comments in the new pack, and enable/disable functions as necessary.  You may find it useful to reference previous and new versions of the pack side-by-side.
+* Update routes / pipelines / sources / destinations that use the previous pack to reference the new pack instead
+* Test, test test
+* Commit / Deploy 
+
 ## Release Notes
+
+### Version 1.2.1 - 2022-07-12
+1. Changed catch-all route (used when Source is not syslog) to use passthru pipeline and default destination.
+
+### Version 1.2.0 - 2022-07-11
+1. Resolved an issue where facility or severity were preserved unintentionally when the value is 0
+2. Added an option to perform lookup using Eval function instead of Lookup function
+3. Minor improvements to the order of processing for missing meta fields
+4. Improved comments to indicate which settings are disabled by default
+
+### Version 1.1.4 - 2022-03-30
+1. Added metadata for packs.cribl.io suite
+2. Added sample files for Ubiquiti routers
+3. Updated minimum version of Stream to 3.4.0
 
 ### Version 1.1.0 - 2021-11-18
 1. Increased volume reduction when event contains multiple timestamps, by removing second timestamp

@@ -16,10 +16,11 @@ routes:
     name: Default
     final: true
     disabled: false
-    pipeline: devnull
-    description: If it's not coming in via syslog, drop it.
+    pipeline: passthru
+    description: If it's not coming in via syslog, send to default destination
     clones: []
     enableOutputExpression: false
     outputExpression: null
     filter: "true"
     output: default
+comments: []

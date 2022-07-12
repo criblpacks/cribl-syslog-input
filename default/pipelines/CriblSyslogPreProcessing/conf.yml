@@ -46,20 +46,20 @@ functions:
     disabled: false
     conf: {}
     final: true
-    description: Stop processing if the event has been evaluated by Cribl as not complying
-      with syslog RFCs.  Just ... do nothing.
+    description: Stop processing if the event has been evaluated by Cribl as not
+      complying with syslog RFCs.  Just ... do nothing.
     groupId: 2yDMIY
   - id: drop
     filter: __syslogFail
-    disabled: true
+    disabled: false
     conf: {}
-    description: Stop processing if the event has been evaluated by Cribl as not complying
-      with syslog RFCs. Drop the message entirely.
+    description: Stop processing if the event has been evaluated by Cribl as not
+      complying with syslog RFCs. Drop the message entirely.
     groupId: 2yDMIY
     final: true
   - id: comment
     filter: "true"
-    disabled: null
+    disabled: false
     conf:
       comment: Take timestamps from message body into account, for generic syslog
         messages.  Specific syslog data sets (such as PAN TRAFFIC) should be
@@ -67,7 +67,7 @@ functions:
     groupId: ar8aMa
   - id: auto_timestamp
     filter: message
-    disabled: null
+    disabled: false
     conf:
       srcField: message
       dstField: __timePrecise
@@ -79,8 +79,8 @@ functions:
       latestDateAllowed: +1week
       earliestDateAllowed: -420weeks
     groupId: ar8aMa
-    description: If a timestamp exists at the beginning of the message field, use it for
-      more precision.
+    description: If a timestamp exists at the beginning of the message field, use it
+      for more precision.
   - id: eval
     filter: __timePrecise
     disabled: false
@@ -94,7 +94,7 @@ functions:
     description: "If a precise time was found, use it instead of the original _time.   "
   - id: comment
     filter: "true"
-    disabled: null
+    disabled: false
     conf:
       comment: Precise time is assumed to include timezone information.  If we did not
         see a precise timestamp, check the lookup file for timezone
@@ -113,7 +113,7 @@ functions:
     groupId: ar8aMa
   - id: lookup
     filter: "!__timePrecise"
-    disabled: null
+    disabled: false
     conf:
       matchMode: exact
       reloadPeriodSec: 60
@@ -128,11 +128,11 @@ functions:
           eventField: __timezone
     groupId: ar8aMa
     final: false
-    description: Look up the host field provided in the syslog payload, return the timezone
-      associated with this value.
+    description: Look up the host field provided in the syslog payload, return the
+      timezone associated with this value.
   - id: eval
     filter: "!__timePrecise && __timezone"
-    disabled: null
+    disabled: false
     conf:
       add:
         - name: _time
@@ -142,7 +142,7 @@ functions:
     final: false
   - id: comment
     filter: "true"
-    disabled: null
+    disabled: false
     conf:
       comment: The timezone has not yet been determined.  Check for offset by N full
         hours (+/- Y seconds) and auto-adjust as needed.  Disable these
@@ -150,7 +150,7 @@ functions:
     groupId: ar8aMa
   - id: eval
     filter: "!__timezone"
-    disabled: null
+    disabled: false
     conf:
       add:
         - name: __offsetPrecision
@@ -159,7 +159,7 @@ functions:
     description: Set precision when auto-matching.  5=+/-5s, 120=+/- 2mins.
   - id: eval
     filter: "!__timezone"
-    disabled: null
+    disabled: false
     conf:
       add:
         - name: __secsOff
@@ -184,12 +184,12 @@ functions:
       remove:
         - __moduloOff
     groupId: ar8aMa
-    description: This event is very nearly off by N hours.  Offset the original _time by
-      the exact number of hours.  Remove __moduloOff to avoid subsequent
-      processing.
+    description: This event is very nearly off by N hours.  Offset the original
+      _time by the exact number of hours.  Remove __moduloOff to avoid
+      subsequent processing.
   - id: comment
     filter: "true"
-    disabled: null
+    disabled: false
     conf:
       comment: The message field may have one or more ways in which extraneous or
         redundant data might be removed.  This data exists in the message field,
@@ -198,7 +198,7 @@ functions:
     groupId: bCgDMX
   - id: comment
     filter: "true"
-    disabled: null
+    disabled: false
     conf:
       comment: >
         If __timePrecise is set, it is because a _second_, more precise
@@ -212,7 +212,7 @@ functions:
     groupId: bCgDMX
   - id: mask
     filter: __timePrecise
-    disabled: null
+    disabled: false
     conf:
       rules:
         - matchRegex: /(?<__preciseTime>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\w+)(.*$)/
@@ -222,7 +222,7 @@ functions:
     groupId: bCgDMX
   - id: mask
     filter: message
-    disabled: null
+    disabled: false
     conf:
       rules:
         - matchRegex: /(#011)/g
@@ -233,7 +233,7 @@ functions:
     description: Replace multi-byte delimiters with single character
   - id: mask
     filter: message
-    disabled: null
+    disabled: false
     conf:
       rules:
         - matchRegex: /(\s\s+)/g
@@ -282,8 +282,8 @@ functions:
       remove:
         - message
         - appname
-    description: "Use appname: message for _raw, preserve appname as __appname for later
-      filtering if needed."
+    description: "Use appname: message for _raw, preserve appname as __appname for
+      later filtering if needed."
     groupId: bCgDMX
   - id: eval
     filter: message
@@ -327,15 +327,15 @@ functions:
         - Drop the text fields facilityName and severityName
     groupId: QghKh8
   - id: eval
-    filter: severity && severityName
-    disabled: null
+    filter: typeof severity !== 'undefined' && severityName
+    disabled: false
     conf:
       remove:
         - severity
     groupId: QghKh8
     description: Drop numeric severity value, keep the human-friendly version
   - id: eval
-    filter: facility && facilityName
+    filter: typeof facility !== 'undefined' && facilityName
     disabled: false
     conf:
       remove:
@@ -348,19 +348,19 @@ functions:
     conf:
       remove:
         - severityName
-    description: Drop severityName and keep severity, the value is longer and we are trying
-      to minimize the total number of bytes being delivered.
+    description: Drop severityName and keep severity, the value is longer and we are
+      trying to minimize the total number of bytes being delivered.
     groupId: QghKh8
   - id: eval
     filter: facility
-    disabled: null
+    disabled: false
     conf: {}
     groupId: QghKh8
-    description: Drop facilityName and keep facility, the value is longer and we are trying
-      to minimize the total number of bytes being delivered.
+    description: Drop facilityName and keep facility, the value is longer and we are
+      trying to minimize the total number of bytes being delivered.
   - id: comment
     filter: "true"
-    disabled: null
+    disabled: false
     conf:
       comment: Remove redundant message field to reduce storage costs.  Normally this
         is done in previous group, but if _raw rewrite was disabled, we catch it
@@ -391,27 +391,6 @@ functions:
         This pack supports multiple methods for assigning this information correctly.
   - id: comment
     filter: "true"
-    disabled: null
-    conf:
-      comment: >-
-        Use the identifier of the LogStream source to set the "source" metadata
-        value, if it was not already set when the LogStream source was
-        configured.  
-
-
-        This approach is generally useful, but in specific deployments, it may be preferable to disable this function.  Note that when using the lookup functions (next group), a value in the source column will override any values set in this function.
-    groupId: psV0gN
-  - id: eval
-    filter: "!source"
-    disabled: false
-    conf:
-      add:
-        - name: source
-          value: __inputId
-    description: Hardcode source
-    groupId: psV0gN
-  - id: comment
-    filter: "true"
     disabled: false
     conf:
       comment: >-
@@ -433,14 +412,17 @@ functions:
     conf:
       comment: >-
         Use the Knowledge object SyslogLookup.csv to resolve metadata using host
-        / source IP information.
+        value.
 
 
-        Within the lookup file, create rows where the 'host' column matches the value used by each syslog sender. (Some syslog senders send a host name, some send an IP address.)
+        Within the lookup file, create rows where the 'host' column matches the value used by each syslog sender. Some syslog senders send a host name, some send an IP address, so it's possible that "looking up by host" will be looking up by the source IP.
+
+
+        To verify which format any given sender is using, use Cribl's data capture feature.
     groupId: H9ubqT
   - id: lookup
     filter: "!index || !sourcetype || !source"
-    disabled: false
+    disabled: true
     conf:
       matchMode: exact
       reloadPeriodSec: 60
@@ -454,16 +436,33 @@ functions:
       outFields: []
     groupId: H9ubqT
     description: Look up meta based on host field
+  - id: eval
+    filter: host
+    disabled: null
+    conf:
+      add:
+        - name: index
+          value: "index ? index : C.Lookup('SyslogLookup.csv', 'host').match(host,
+            'index')"
+        - name: source
+          value: "source ? source : C.Lookup('SyslogLookup.csv', 'host').match(host,
+            'source')"
+        - name: sourcetype
+          value: "sourcetype ? sourcetype : C.Lookup('SyslogLookup.csv',
+            'host').match(host, 'sourcetype')"
+    groupId: H9ubqT
+    description: Use eval (rather than Lookup) to lookup missing meta fields.  If
+      additional columns have been added to the .csv, add them manually below.
   - id: comment
     filter: "true"
     disabled: false
     conf:
-      comment: We did not find values for all metadata by using the host field from the
-        syslog message; try again using the IP address of the syslog
+      comment: If we did not find values for all metadata by using the host field from
+        the syslog message; try again using the IP address of the syslog
         sender.  Note that in the case where syslog relay servers are sending to
         LogStream, the incoming IP address will be that of the syslog relay, and
-        this lookup approach would fail.
-    groupId: H9ubqT
+        this lookup approach should be set to fail.
+    groupId: EX4lAl
   - id: regex_extract
     filter: __srcIpPort && (!index || !sourcetype || !source)
     disabled: false
@@ -473,10 +472,10 @@ functions:
       overwrite: false
       regex: /(?<__srcProto>.*)\|(?<__srcIp>.*?)\|(?<__srcPort>.*)/
     description: Extract the source ip as seen by the LogStream worker
-    groupId: H9ubqT
+    groupId: EX4lAl
   - id: lookup
-    filter: "!index || !sourcetype || !source"
-    disabled: false
+    filter: __srcIp && (!index || !sourcetype || !source)
+    disabled: true
     conf:
       matchMode: exact
       reloadPeriodSec: 60
@@ -489,7 +488,25 @@ functions:
       file: SyslogLookup.csv
       outFields: []
     description: Look up meta based on __srcIp field
-    groupId: H9ubqT
+    groupId: EX4lAl
+  - id: eval
+    filter: __srcIp
+    disabled: false
+    conf:
+      add:
+        - name: index
+          value: "index ? index : C.Lookup('SyslogLookup.csv', 'host').match(__srcIp,
+            'index')"
+        - name: source
+          value: "source ? source : C.Lookup('SyslogLookup.csv', 'host').match(__srcIp,
+            'source')"
+        - name: sourcetype
+          value: "sourcetype ? sourcetype : C.Lookup('SyslogLookup.csv',
+            'host').match(__srcIp, 'sourcetype')"
+      remove: []
+    description: Use eval (rather than Lookup) to look missing fields.  If
+      additional columns have been added to the .csv, add them manually below.
+    groupId: EX4lAl
   - id: comment
     filter: "true"
     disabled: false
@@ -516,9 +533,9 @@ functions:
     filter: "true"
     disabled: false
     conf:
-      comment: "DNS Lookup notes: To dramatically reduce latency due to DNS lookups, it
-        is strongly advised that you use a local caching name service, such as
-        nscd.  To avoid overhead, the DNS lookup in the pack is disabled by
+      comment: "DNS Lookup notes: To dramatically reduce latency due to DNS lookups,
+        it is strongly advised that you use a local caching name service, such
+        as nscd.  To avoid overhead, the DNS lookup in the pack is disabled by
         default, enable it if this function is necessary."
     groupId: 8k1eMB
   - id: eval
@@ -539,11 +556,11 @@ functions:
         - inFieldName: host
           outFieldName: __hostDNS
     groupId: 8k1eMB
-    description: If the host field contains an IP address, use reverse DNS to map back to a
-      hostname.
+    description: If the host field contains an IP address, use reverse DNS to map
+      back to a hostname.
   - id: lookup
     filter: __hostDNS
-    disabled: false
+    disabled: true
     conf:
       matchMode: exact
       reloadPeriodSec: 60
@@ -559,7 +576,7 @@ functions:
     groupId: 8k1eMB
   - id: comment
     filter: "true"
-    disabled: false
+    disabled: true
     conf:
       comment: >-
         If certain metadata fields are missing, attempt to determine them using
@@ -568,10 +585,13 @@ functions:
 
 
         While this method will work, it does require more processing than the lookup based on other extracted fields.  Use this approach when other approaches are not viable.  To avoid unnecessary overhead, it is recommended to keep the next function in place and enabled.  Add a complete list of necessary metadata fields to the filter.
+
+
+        Because this type of a match is computationally expensive, the functions in this section are disabled by default.
     groupId: MGH2i6
   - id: eval
     filter: index && sourcetype && source
-    disabled: false
+    disabled: true
     conf: {}
     groupId: MGH2i6
     final: true
@@ -601,6 +621,18 @@ functions:
 
         Modify the list of meta fields, and values, as necessary to suit your destination(s).
     groupId: Nb3fCN
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: >-
+        Use the identifier of the LogStream source to set the "source" metadata
+        value, if it was not already set when the LogStream source was
+        configured.  
+
+
+        This approach is generally useful, but in specific deployments, it may be preferable to disable this function.  Note that when using the lookup functions (next group), a value in the source column will override any values set in this function.
+    groupId: Nb3fCN
   - id: eval
     filter: "!source"
     disabled: false
@@ -610,9 +642,16 @@ functions:
           value: __inputId
     groupId: Nb3fCN
     description: Hardcode source
+  - id: comment
+    filter: "true"
+    disabled: null
+    conf:
+      comment: Before deploying, edit the default values for index,
+        sourcetype.  Disable unnecessary field evals.
+    groupId: Nb3fCN
   - id: eval
     filter: "!index"
-    disabled: false
+    disabled: true
     conf:
       add:
         - name: index
@@ -622,7 +661,7 @@ functions:
     groupId: Nb3fCN
   - id: eval
     filter: "!sourcetype"
-    disabled: false
+    disabled: true
     conf:
       add:
         - name: sourcetype
@@ -633,8 +672,8 @@ functions:
 groups:
   2yDMIY:
     name: Syslog_check
-    description: handle data that arrived on a syslog port, but where the data is not using
-      syslog protocol.
+    description: handle data that arrived on a syslog port, but where the data is
+      not using syslog protocol.
     index: 3
     disabled: false
   ar8aMa:
@@ -642,6 +681,7 @@ groups:
     description: Use accurate timestamps when available, address hosts in alternate
       timezones
     index: 4
+    disabled: false
   bCgDMX:
     name: Volume reduction by rewriting _raw
     description: Reduce data by removing redundant fields from _raw
@@ -652,16 +692,15 @@ groups:
     description: Remove redundant metadata fields
     index: 6
     disabled: false
-  psV0gN:
-    name: Hardcode source metadata
-    description: Set value for 'source' based on LogStream input ID
-    index: 8
   H9ubqT:
-    name: Set metadata from hostname, srcip using lookups
-    description: Use  hostname or source IP to look up metadata if this data is not already
-      set.
-    index: 9
+    name: Set metadata from hostname
+    description: Use  value of host to look up metadata if this data is not already set.
+    index: 8
     disabled: false
+  EX4lAl:
+    name: Set metadata from source IP
+    description: Use  value of __srcIp to look up metadata if this data is not already set.
+    index: 9
   8k1eMB:
     name: Host field normalization
     description: Set meta from reverse DNS + lookup
@@ -671,7 +710,7 @@ groups:
     name: "Set Meta information from _raw "
     description: If sourcetype / index have not been identified yet, analyze _raw
     index: 11
-    disabled: false
+    disabled: true
   Nb3fCN:
     name: Hardcode missing Meta
     description: Set any remaining, missing information prior to sending to final
