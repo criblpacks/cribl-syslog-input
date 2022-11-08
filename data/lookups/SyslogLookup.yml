@@ -1,3 +1,3 @@
-size: 383
-description: Look up meta information for syslog senders using hostname or IP.
-rows: 7
+size: 478
+description: Lookup by host to return meta information
+rows: 8

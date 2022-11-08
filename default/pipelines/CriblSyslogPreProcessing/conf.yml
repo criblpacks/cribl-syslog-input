@@ -30,6 +30,13 @@ functions:
     disabled: null
     conf:
       comment: "Author: Michael Donnelly - Cribl"
+  - id: eval
+    filter: "!__inputId.startsWith('syslog:')"
+    disabled: null
+    conf: {}
+    description: If this event did not reach Cribl Stream through a Syslog source -
+      do nothing.
+    final: true
   - id: comment
     filter: "true"
     disabled: false
@@ -61,16 +68,26 @@ functions:
     filter: "true"
     disabled: false
     conf:
-      comment: Take timestamps from message body into account, for generic syslog
-        messages.  Specific syslog data sets (such as PAN TRAFFIC) should be
-        addressed in pipelines dedicated to that data set, rather than here.
-    groupId: ar8aMa
+      comment: >-
+        Use the Knowledge object SyslogLookup.csv to resolve timezone and other
+        metadata using host/source IP information.
+
+
+        Within the lookup file, create rows where the 'host' column matches the value used by each Syslog sender. (Some Syslog senders send a hostname, and some send an IP address.)
+  - id: comment
+    filter: "true"
+    disabled: true
+    conf:
+      comment: "OPTIONAL: Take timestamps from message body into account, for generic
+        syslog messages.  Specific syslog data sets (such as PAN TRAFFIC) should
+        be addressed in pipelines dedicated to that data set, rather than here."
+    groupId: 0nR5Qh
   - id: auto_timestamp
     filter: message
-    disabled: false
+    disabled: true
     conf:
       srcField: message
-      dstField: __timePrecise
+      dstField: __timeFromMessageField
       defaultTimezone: utc
       timeExpression: time.getTime() / 1000
       offset: 0
@@ -78,41 +95,99 @@ functions:
       defaultTime: none
       latestDateAllowed: +1week
       earliestDateAllowed: -420weeks
-    groupId: ar8aMa
     description: If a timestamp exists at the beginning of the message field, use it
-      for more precision.
+      to more closely reflect the original event time.
+    groupId: 0nR5Qh
   - id: eval
-    filter: __timePrecise
-    disabled: false
+    filter: __timeFromMessageField
+    disabled: true
     conf:
       add:
+        - name: __timeFromRaw
+          value: _time
         - name: _time
-          value: __timePrecise
+          value: __timeFromMessageField
+    description: Set _time to the timestamp from the message field.  Preserve the
+      time derived from _raw for troubleshooting.
+    groupId: 0nR5Qh
+  - id: eval
+    filter: "!__timezone && __timeFromMessageField &&
+      message.match(/\\d{4}(.\\d{2}){2}(\\s|T)(\\d{2}.){2}\\d{2}/)"
+    disabled: true
+    conf:
+      add:
         - name: __timezone
-          value: "'RFC'"
-    groupId: ar8aMa
-    description: "If a precise time was found, use it instead of the original _time.   "
+          value: "'ISO 8601'"
+    groupId: 0nR5Qh
+    description: Match ISO 8601 patterns in message field.
   - id: comment
     filter: "true"
     disabled: false
     conf:
-      comment: Precise time is assumed to include timezone information.  If we did not
-        see a precise timestamp, check the lookup file for timezone
-        information.  It it exists, use this.
+      comment: >-
+        Check to see if Syslog time stamp is in ISO 8601 format.  If it is, the
+        rest of the logic in this section can be bypassed; automatic timezone
+        extraction is assumed to be accurate.
+
+
+        If an additional timestamp exists in the Message field, it will be analyzed similarly.
+    groupId: ar8aMa
+  - id: eval
+    filter: "!__timezone && !__timeFromMessageField &&
+      _raw.match(/\\d{4}(.\\d{2}){2}(\\s|T)(\\d{2}.){2}\\d{2}/)"
+    disabled: null
+    conf:
+      add:
+        - name: __timezone
+          value: "'ISO 8601'"
+    description: Match ISO 8601 patterns in raw field.
+    groupId: ar8aMa
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
+      comment: Check whether extracted time is very nearly time.now().  If so,
+        timezone adjustments in this section may be bypassed.
+    groupId: ar8aMa
+  - id: eval
+    filter: "!__timezone"
+    disabled: false
+    conf:
+      add:
+        - name: __offsetPrecision
+          value: "10"
+        - name: __timestampSecondsOff
+          value: Math.abs(Date.now()/1000-_time)
+    groupId: ar8aMa
+    description: "__offsetPrecision: Set seconds of precision when
+      auto-matching.  10 = +/- 10 seconds"
+  - id: eval
+    filter: "!__timezone && __timestampSecondsOff<=__offsetPrecision"
+    disabled: false
+    conf:
+      add:
+        - name: __timezone
+          value: "'UTC'"
+        - name: __timeStampIsCurrent
+          value: "'true'"
+    description: This event just came in, and event time is close to UTC.
+    final: false
     groupId: ar8aMa
   - id: comment
     filter: "true"
     disabled: false
     conf:
       comment: >-
-        Use the Knowledge object SyslogLookup.csv to resolve metadata using host
-        / source IP information.
+        Check the lookup file for timezone information.  If a timezone setting
+        exists, use this to adjust the timestamp.
 
 
-        Within the lookup file, create rows where the 'host' column matches the value used by each syslog sender. (Some syslog senders send a host name, some send an IP address.)
+        Note that timezone values are of the form "US/Pacific" rather than "PDT".  A full list of all valid timezones are found in column 2, here:
+
+        https://en.wikipedia.org/wiki/List_of_tz_database_time_zones#List
     groupId: ar8aMa
   - id: lookup
-    filter: "!__timePrecise"
+    filter: "!__timezone"
     disabled: false
     conf:
       matchMode: exact
@@ -125,18 +200,27 @@ functions:
       file: SyslogLookup.csv
       outFields:
         - lookupField: __timezone
-          eventField: __timezone
     groupId: ar8aMa
     final: false
-    description: Look up the host field provided in the syslog payload, return the
-      timezone associated with this value.
+    description: Use Lookup to find the timezone associated with this host.
   - id: eval
-    filter: "!__timePrecise && __timezone"
+    filter: "!__timezone"
+    disabled: true
+    conf:
+      add:
+        - value: "__timezone ? __timezone : C.Lookup('SyslogLookup.csv',
+            'host').match(host, '__timezone')"
+          name: __timezone
+    groupId: ar8aMa
+    description: Use C.Lookup (rather than Lookup) to find the timezone associated
+      with this host.  Feature disabled by default.
+  - id: eval
+    filter: __timezone && __timezone != 'UTC' && __timezone != 'ISO 8601'
     disabled: false
     conf:
       add:
         - name: _time
-          value: C.Time.adjustTZ(_time,'UTC',__timezone)/1000 || _time
+          value: C.Time.adjustTZ(_time*1000,'UTC',__timezone)/1000
     groupId: ar8aMa
     description: Adjust time using the timezone returned from the lookup
     final: false
@@ -144,19 +228,11 @@ functions:
     filter: "true"
     disabled: false
     conf:
-      comment: The timezone has not yet been determined.  Check for offset by N full
+      comment: If the timezone has not yet been determined, check for offset by N full
         hours (+/- Y seconds) and auto-adjust as needed.  Disable these
-        functions if an automatic adjustment is not desired.
+        functions if an automatic adjustment is not desired.  This function uses
+        the __offsetPrecision set above.
     groupId: ar8aMa
-  - id: eval
-    filter: "!__timezone"
-    disabled: false
-    conf:
-      add:
-        - name: __offsetPrecision
-          value: "5"
-    groupId: ar8aMa
-    description: Set precision when auto-matching.  5=+/-5s, 120=+/- 2mins.
   - id: eval
     filter: "!__timezone"
     disabled: false
@@ -169,11 +245,11 @@ functions:
         - name: __moduloOff
           value: Math.abs(__secsOff%3600)
     groupId: ar8aMa
-    description: "Calculate the difference in various ways.  "
+    description: Calculate the difference between now() and the event time
     final: false
   - id: eval
-    filter: __offsetPrecision && (__moduloOff<__offsetPrecision ||
-      __moduloOff>(3600-__offsetPrecision))
+    filter: "!__timezone && (__offsetPrecision && (__moduloOff<__offsetPrecision ||
+      __moduloOff>(3600-__offsetPrecision)))"
     disabled: false
     conf:
       add:
@@ -184,9 +260,8 @@ functions:
       remove:
         - __moduloOff
     groupId: ar8aMa
-    description: This event is very nearly off by N hours.  Offset the original
-      _time by the exact number of hours.  Remove __moduloOff to avoid
-      subsequent processing.
+    description: "This event is very nearly off by N hours.  Offset the original
+      _time by the exact number of hours. "
   - id: comment
     filter: "true"
     disabled: false
@@ -378,11 +453,26 @@ functions:
     filter: "true"
     disabled: false
     conf:
+      comment: Remove additional meta fields that are not generally useful.
+    groupId: QghKh8
+  - id: eval
+    filter: structuredData
+    disabled: false
+    conf:
+      remove:
+        - structuredData
+    description: 'Remove RFC5424 structedData field from the event.   Example:
+      [timeQuality tzKnown="1" isSynced="1" syncAccuracy="129430"]'
+    groupId: QghKh8
+  - id: comment
+    filter: "true"
+    disabled: false
+    conf:
       comment: >-
         Metadata notes: 
 
 
-        In some cases, dedicated syslog ports are used for different device types; in such cases metadata such as index, source and sourcetype can be hard-coded to the LogStream source using Processing Settings / Metadata.
+        In some cases, dedicated syslog ports are used for different device types; in such cases metadata such as index, source and sourcetype can be hard-coded to the Stream source using Processing Settings / Metadata.
 
 
         While this is the preferred approach, there are some devices for which the delivery port is hard-coded. In such cases, one must use alternate means to identify the correct meta information.
@@ -422,7 +512,7 @@ functions:
     groupId: H9ubqT
   - id: lookup
     filter: "!index || !sourcetype || !source"
-    disabled: true
+    disabled: false
     conf:
       matchMode: exact
       reloadPeriodSec: 60
@@ -432,13 +522,13 @@ functions:
           lookupField: host
       ignoreCase: false
       matchType: first
-      file: SyslogLookup.csv
       outFields: []
+      file: SyslogLookup.csv
     groupId: H9ubqT
     description: Look up meta based on host field
   - id: eval
     filter: host
-    disabled: null
+    disabled: false
     conf:
       add:
         - name: index
@@ -451,8 +541,9 @@ functions:
           value: "sourcetype ? sourcetype : C.Lookup('SyslogLookup.csv',
             'host').match(host, 'sourcetype')"
     groupId: H9ubqT
-    description: Use eval (rather than Lookup) to lookup missing meta fields.  If
-      additional columns have been added to the .csv, add them manually below.
+    description: Use C.Lookup (rather than Lookup) to lookup missing meta
+      fields.  If additional columns have been added to the .csv, add them
+      manually below.   Feature disabled by default.
   - id: comment
     filter: "true"
     disabled: false
@@ -475,7 +566,7 @@ functions:
     groupId: EX4lAl
   - id: lookup
     filter: __srcIp && (!index || !sourcetype || !source)
-    disabled: true
+    disabled: false
     conf:
       matchMode: exact
       reloadPeriodSec: 60
@@ -509,7 +600,7 @@ functions:
     groupId: EX4lAl
   - id: comment
     filter: "true"
-    disabled: false
+    disabled: true
     conf:
       comment: >-
         For some syslog sources, the self-identified host field is actually an
@@ -531,7 +622,7 @@ functions:
     groupId: 8k1eMB
   - id: comment
     filter: "true"
-    disabled: false
+    disabled: true
     conf:
       comment: "DNS Lookup notes: To dramatically reduce latency due to DNS lookups,
         it is strongly advised that you use a local caching name service, such
@@ -540,7 +631,7 @@ functions:
     groupId: 8k1eMB
   - id: eval
     filter: index && sourcetype && source
-    disabled: false
+    disabled: true
     conf: {}
     final: true
     description: Stop processing now if all metadata is present.
@@ -626,8 +717,8 @@ functions:
     disabled: false
     conf:
       comment: >-
-        Use the identifier of the LogStream source to set the "source" metadata
-        value, if it was not already set when the LogStream source was
+        Use the identifier of the Stream source to set the "source" metadata
+        value, if it was not already set when the Stream source was
         configured.  
 
 
@@ -644,14 +735,14 @@ functions:
     description: Hardcode source
   - id: comment
     filter: "true"
-    disabled: null
+    disabled: false
     conf:
       comment: Before deploying, edit the default values for index,
         sourcetype.  Disable unnecessary field evals.
     groupId: Nb3fCN
   - id: eval
     filter: "!index"
-    disabled: true
+    disabled: false
     conf:
       add:
         - name: index
@@ -661,7 +752,7 @@ functions:
     groupId: Nb3fCN
   - id: eval
     filter: "!sourcetype"
-    disabled: true
+    disabled: false
     conf:
       add:
         - name: sourcetype
@@ -672,48 +763,56 @@ functions:
 groups:
   2yDMIY:
     name: Syslog_check
-    description: handle data that arrived on a syslog port, but where the data is
+    description: Handle data that arrived on a syslog source, but where the data is
       not using syslog protocol.
-    index: 3
-    disabled: false
-  ar8aMa:
-    name: Timestamps
-    description: Use accurate timestamps when available, address hosts in alternate
-      timezones
     index: 4
+    disabled: false
+  0nR5Qh:
+    name: Timestamps from Message Field
+    description: Optional processing of Message Field to for the
+      timestamp.  Disabled by default.
+    disabled: true
+    index: 6
+  ar8aMa:
+    name: TimeZones
+    description: Try a number of methods for determining the correct timezone of the
+      Syslog sender.
+    index: 7
     disabled: false
   bCgDMX:
     name: Volume reduction by rewriting _raw
     description: Reduce data by removing redundant fields from _raw
-    index: 5
+    index: 8
     disabled: false
   QghKh8:
     name: Additional cleanup
     description: Remove redundant metadata fields
-    index: 6
+    index: 9
     disabled: false
   H9ubqT:
-    name: Set metadata from hostname
+    name: Set metadata from host field
     description: Use  value of host to look up metadata if this data is not already set.
-    index: 8
+    index: 11
     disabled: false
   EX4lAl:
     name: Set metadata from source IP
     description: Use  value of __srcIp to look up metadata if this data is not already set.
-    index: 9
+    index: 12
+    disabled: false
   8k1eMB:
     name: Host field normalization
-    description: Set meta from reverse DNS + lookup
-    disabled: false
-    index: 10
+    description: Set meta from reverse DNS + lookup.  Feature disabled by default.
+    disabled: true
+    index: 13
   MGH2i6:
     name: "Set Meta information from _raw "
-    description: If sourcetype / index have not been identified yet, analyze _raw
-    index: 11
+    description: If sourcetype / index have not been identified yet, analyze
+      _raw.  Feature disabled by default.
+    index: 14
     disabled: true
   Nb3fCN:
     name: Hardcode missing Meta
     description: Set any remaining, missing information prior to sending to final
       destinations
-    index: 12
+    index: 15
     disabled: false
